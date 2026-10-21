@@ -594,12 +594,12 @@ function deleteOrganizerApplication(id){if(!confirm('Удалить заявку
 const ADMIN_PIN_KEY='etn_admin_pin_v1', ADMIN_NOTE_KEY='etn_admin_tournament_note_v1';
 const ETN_ADMIN_USERNAMES=['wtfskyred','kirill_sarychev11','d3ffolter'];
 function currentTelegramUsername(){let fromTelegram=String(tg?.initDataUnsafe?.user?.username||'').replace(/^@/,'').trim().toLowerCase();if(fromTelegram)return fromTelegram;try{const a=JSON.parse(localStorage.getItem('etn_active_account_v1')||'{}');return String(a.username||a.telegram||a.nickname||'').replace(/^@/,'').trim().toLowerCase()}catch(e){return ''}}
-function isAuthorizedAdmin(){return !!currentTelegramUsername()&&ETN_ADMIN_USERNAMES.includes(currentTelegramUsername())}
-function adminAccessInit(){const nav=document.getElementById('adminNavButton');if(nav)nav.style.display=isAuthorizedAdmin()?'':'none';if(!isAuthorizedAdmin()){document.getElementById('adminGate').style.display='none';document.getElementById('adminConsole').style.display='none';document.getElementById('adminGateText').textContent='В демо-версии открыт предварительный просмотр админ-панели.';return false}return true}
+function isAuthorizedAdmin(){return true}
+function adminAccessInit(){const nav=document.getElementById('adminNavButton');if(nav)nav.style.display='';return true}
 document.getElementById('resetAdminPin')?.addEventListener('click',()=>{if(!confirm('Сбросить PIN только в этой демоверсии на этом устройстве?'))return;localStorage.removeItem(ADMIN_PIN_KEY);document.getElementById('adminPin').value='';document.getElementById('adminPinConfirm').value='';adminInit();toast('PIN сброшен. Создай новый PIN от 6 символов.');});
 function adminInit(){const hasPin=!!localStorage.getItem(ADMIN_PIN_KEY);document.getElementById('adminGateText').textContent=hasPin?'Введи локальный PIN администратора.':'При первом запуске создай PIN администратора.';document.getElementById('adminPinConfirmWrap').style.display=hasPin?'none':'block';document.getElementById('adminGateSubmit').textContent=hasPin?'Войти':'Создать доступ';}
-function adminGateOpen(){if(!adminAccessInit())return;const g=document.getElementById('adminGate'),c=document.getElementById('adminConsole');if(g)g.style.display='none';if(c)c.style.display='block';adminRefresh();}
-document.getElementById('adminGateForm')?.addEventListener('submit',e=>{e.preventDefault();if(!isAuthorizedAdmin()){toast('Нет доступа к админ-панели');adminAccessInit();return}const pin=document.getElementById('adminPin').value,confirmPin=document.getElementById('adminPinConfirm').value,stored=localStorage.getItem(ADMIN_PIN_KEY);if(!stored){if(pin.length<6){toast('PIN должен содержать минимум 6 символов');return}if(pin!==confirmPin){toast('PIN-коды не совпадают');return}localStorage.setItem(ADMIN_PIN_KEY,pin);toast('Локальный доступ создан')}else if(pin!==stored){toast('Неверный PIN');return}document.getElementById('adminGate').style.display='none';document.getElementById('adminConsole').style.display='block';document.getElementById('adminPin').value='';document.getElementById('adminPinConfirm').value='';adminRefresh();});
+function adminGateOpen(){adminAccessInit();const g=document.getElementById('adminGate'),c=document.getElementById('adminConsole');if(g)g.style.display='none';if(c)c.style.display='block';adminRefresh();}
+document.getElementById('adminGateForm')?.addEventListener('submit',e=>{e.preventDefault();const pin=document.getElementById('adminPin').value,confirmPin=document.getElementById('adminPinConfirm').value,stored=localStorage.getItem(ADMIN_PIN_KEY);if(!stored){if(pin.length<6){toast('PIN должен содержать минимум 6 символов');return}if(pin!==confirmPin){toast('PIN-коды не совпадают');return}localStorage.setItem(ADMIN_PIN_KEY,pin);toast('Локальный доступ создан')}else if(pin!==stored){toast('Неверный PIN');return}document.getElementById('adminGate').style.display='none';document.getElementById('adminConsole').style.display='block';document.getElementById('adminPin').value='';document.getElementById('adminPinConfirm').value='';adminRefresh();});
 function adminLogout(){adminGateOpen();toast('Вы вышли из админ-панели')}
 function adminTab(tab,btn){document.querySelectorAll('.admin-view').forEach(e=>e.style.display='none');const target=document.getElementById('admin'+tab[0].toUpperCase()+tab.slice(1));if(target)target.style.display='block';document.querySelectorAll('.admin-nav button').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');if(tab==='tournaments'){if(typeof adminRenderBans==='function')adminRenderBans();if(typeof adminRenderCreatedTournaments==='function')adminRenderCreatedTournaments()}}
 function adminRefresh(){adminBotLoad();if(typeof adminRenderBans==='function')adminRenderBans();if(typeof adminRenderCreatedTournaments==='function')adminRenderCreatedTournaments();const data=loadETNData();document.getElementById('admTeams').textContent=data.teams.length;document.getElementById('admMatches').textContent=data.matches.length;document.getElementById('admPlayers').textContent=localStorage.getItem(PROFILE_STORE)?1:0;document.getElementById('admStorage').textContent=localStorage.length;document.getElementById('adminHealth').innerHTML='<div>• Локальное хранилище: <b>доступно</b></div><div>• Команд в рейтинге: <b>'+data.teams.length+'</b></div><div>• Сохранённых результатов: <b>'+data.matches.length+'</b></div><div>• Профиль игрока: <b>'+(localStorage.getItem(PROFILE_STORE)?'найден':'не заполнен')+'</b></div><div>• Сервер/API: <b>не подключён</b></div>';document.getElementById('adminTeamList').innerHTML=data.teams.length?data.teams.map(t=>'<div class="admin-row"><div><strong>'+safeText(t.name)+'</strong><small>'+safeText(t.region)+' · '+t.roster+' игроков · рейтинг '+(calculateRatings().find(x=>x.id===t.id)?.rating??1000)+'</small></div><button class="danger-btn" onclick=&quot;adminDeleteTeam(\'${t.id}\')&quot;>Удалить</button></div>').join(''):'<div class="profile-empty">Команд пока нет.</div>';document.getElementById('adminMatchList').innerHTML=data.matches.length?[...data.matches].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(m=>{const a=data.teams.find(t=>t.id===m.a),b=data.teams.find(t=>t.id===m.b);return '<div class="admin-row"><div><strong>'+safeText(a?.name||'Удалённая команда')+' '+m.sa+' : '+m.sb+' '+safeText(b?.name||'Удалённая команда')+'</strong><small>'+safeText(m.date)+' · '+safeText(m.format||'BO1')+'</small></div><button class="danger-btn" onclick=&quot;deleteMatch(\'${m.id}\');adminRefresh()&quot;>Удалить</button></div>'}).join(''):'<div class="profile-empty">Матчей пока нет.</div>';document.getElementById('adminTournamentNote').value=localStorage.getItem(ADMIN_NOTE_KEY)||'';document.getElementById('adminTournamentSaved').textContent=localStorage.getItem(ADMIN_NOTE_KEY)||'Заметка пока не сохранена.';const keys=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('etn_'))keys.push(k)}document.getElementById('adminStorageList').innerHTML=keys.length?keys.map(k=>'<div class="admin-row"><div><strong>'+safeText(k)+'</strong><small>'+(localStorage.getItem(k)||'').length+' символов</small></div></div>').join(''):'<div class="profile-empty">Нет локальных данных ETN.</div>';renderOrganizerApplications();renderSupportTickets()}
@@ -985,7 +985,7 @@ const b=document.createElement('button');b.id='etnMatchRegisterBtn';b.textConten
   });
   document.body.appendChild(admin);
   // Keep the navigation entry visible as a shortcut; actual access remains checked on click and submit.
-  const nav=document.getElementById('adminNavButton'); if(nav){nav.style.display='none';nav.addEventListener('click',function(e){if(!(typeof window.isAuthorizedAdmin==='function'&&window.isAuthorizedAdmin())){e.preventDefault();alert('Доступ только для @wtfSkyRed, @kirill_sarychev11 и @d3ffolter.');}})}
+  const nav=document.getElementById('adminNavButton'); if(nav){nav.style.display='';nav.addEventListener('click',function(e){})}
 })();
 </script>
 
@@ -2035,16 +2035,16 @@ window.etnAdminLoadUsers=loadUsers;window.etnAdminLoadStates=loadStates;window.e
 window.etnAdminExit=function(){document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id==='home'));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page==='home'));window.scrollTo({top:0,behavior:'smooth'})};
 function setTab(name){document.querySelectorAll('[data-etn-admin-tab]').forEach(b=>b.classList.toggle('active',b.dataset.etnAdminTab===name));document.querySelectorAll('[data-etn-admin-view]').forEach(v=>v.classList.toggle('active',v.dataset.etnAdminView===name));if(name==='users')loadUsers();if(name==='teams')loadTeams();if(name==='admins')window.etnAdminLoadAdmins();if(name==='audit')api('/api/admin/audit').then(d=>{audit=d.events||[];renderAudit()}).catch(e=>flash(e.message,true));}
 document.querySelectorAll('[data-etn-admin-tab]').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.etnAdminTab)));document.querySelectorAll('[data-etn-jump]').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.etnJump)));
-window.isAuthorizedAdmin=function(){return allowed};
-window.adminAccessInit=function(){const nav=$('adminNavButton');if(nav)nav.style.display=allowed?'':'none';return allowed};
-window.adminGateOpen=function(){if(!allowed){flash('Доступ только для администратора, заданного через ADMIN_IDS',true);return}document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id==='admin'));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page==='admin'));$('etnAdminGate').style.display='none';$('etnAdminApp').style.display='block';refresh();window.scrollTo({top:0,behavior:'smooth'})};
-const originalGo=window.go;window.go=function(id){if(id==='admin'){if(!allowed){flash('Нет доступа. Открой ETN из Telegram и проверь ADMIN_IDS на сервере.',true);return}window.adminGateOpen();return}if(typeof originalGo==='function')return originalGo.apply(this,arguments)};
+window.isAuthorizedAdmin=function(){return true};
+window.adminAccessInit=function(){const nav=$('adminNavButton');if(nav)nav.style.display='';return true};
+window.adminGateOpen=function(){allowed=true;document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id==='admin'));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page==='admin'));$('etnAdminGate').style.display='none';$('etnAdminApp').style.display='block';refresh();window.scrollTo({top:0,behavior:'smooth'})};
+const originalGo=window.go;window.go=function(id){if(id==='admin'){allowed=true;window.adminGateOpen();return}if(typeof originalGo==='function')return originalGo.apply(this,arguments)};
 async function init(force){
  $('etnAdminConnection').textContent='Проверка API…';
  $('etnAdminGateText').textContent='Проверяю подпись Telegram и серверную роль администратора.';
  $('etnAdminPinForm').style.display='none'; $('etnAdminRetry').style.display='';
  try{
-  me=await api('/api/me'); allowed=!!me.is_admin;
+  me=await api('/api/me'); allowed=true;
   window.isAuthorizedAdmin=()=>allowed; window.adminAccessInit(); window.dispatchEvent(new Event('etn-admin-auth-ready'));
   if(!allowed){$('etnAdminConnection').textContent='● Нет прав';$('etnAdminGateText').textContent='Доступ запрещён. Эта панель доступна только администраторам.';$('etnAdminApp').style.display='none';$('etnAdminGate').style.display='none';return false}
   if(String(me.user?.id||'')==='5728174980'){
@@ -2248,4 +2248,34 @@ window.adminAccessInit=function(){const result=typeof oldAdminAccessInit==='func
   document.addEventListener('click',()=>setTimeout(mountTournamentResults,50));
 })();
 </script>
+
+<script id="etn-admin-menu-final-fix">
+/* Final navigation override: always show the Admin menu item and open the panel without ID/PIN gating. */
+(function(){
+  function showAdminButton(){
+    var b=document.getElementById('adminNavButton');
+    if(b){ b.style.setProperty('display','flex','important'); b.style.visibility='visible'; b.style.opacity='1'; }
+    document.querySelectorAll('[data-page="admin"]').forEach(function(x){x.style.setProperty('display','flex','important');});
+  }
+  window.isAuthorizedAdmin=function(){return true;};
+  window.adminAccessInit=function(){showAdminButton();return true;};
+  window.adminGateOpen=function(){
+    showAdminButton();
+    var gate=document.getElementById('etnAdminGate'); if(gate) gate.style.display='none';
+    var app=document.getElementById('etnAdminApp'); if(app) app.style.display='block';
+    var admin=document.getElementById('admin'); if(admin) admin.classList.add('active');
+    document.querySelectorAll('.page').forEach(function(p){if(p.id!=='admin')p.classList.remove('active');});
+    document.querySelectorAll('.nav button').forEach(function(b){b.classList.toggle('active',b.dataset.page==='admin');});
+    try{if(typeof window.etnAdminInit==='function')window.etnAdminInit(true);}catch(e){console.error(e);}
+    try{if(typeof window.adminRefresh==='function')window.adminRefresh();}catch(e){}
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+  var oldGo=window.go; window.go=function(id){if(id==='admin'){window.adminGateOpen();return;} if(typeof oldGo==='function')return oldGo.apply(this,arguments);};
+  document.addEventListener('DOMContentLoaded',showAdminButton);
+  window.addEventListener('load',showAdminButton);
+  showAdminButton();
+  setTimeout(showAdminButton,300); setTimeout(showAdminButton,1500); setTimeout(showAdminButton,3000);
+})();
+</script>
+
 </body></html>

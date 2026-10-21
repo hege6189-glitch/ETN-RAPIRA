@@ -146,24 +146,13 @@ def health():
     return jsonify({"ok": True, "service": "ETN RAPIRA API", "auth": "Telegram initData required for /api/*"})
 
 def is_admin_user(user_id):
-    # Public-admin mode requested by the site owner.
-    # Access still requires valid Telegram initData authentication (g.user is server-verified).
-    return bool(str(user_id).strip())
+    # Public admin mode requested by the project owner:
+    # any authenticated Telegram Mini App user may use admin features.
+    return True
 
 def is_owner_user(user_id):
-    # The configured owner remains the owner even if the SQLite row is missing.
-    uid = str(user_id)
-    if uid == OWNER_ADMIN_ID:
-        return True
-
-    c = connect()
-    try:
-        row = c.execute(
-            "SELECT role FROM admins WHERE user_id=?", (uid,)
-        ).fetchone()
-        return bool(row and row["role"] == "owner")
-    finally:
-        c.close()
+    # Public admin mode: no owner-only restriction in the UI/API.
+    return True
 
 @app.get("/api/me")
 def me():
