@@ -2182,4 +2182,70 @@ window.adminAccessInit=function(){const result=typeof oldAdminAccessInit==='func
 })();
 </script>
 
+
+<style>
+#etnPublicTournamentResults{margin:18px auto;padding:18px;max-width:1000px;border:1px solid #3b2853;border-radius:16px;background:#100c18;color:#f5f0ff}
+#etnPublicTournamentResults h3{margin:0 0 8px;font-size:20px}
+#etnPublicTournamentResults .etn-tr-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#etnPublicTournamentResults label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:#ddd3e8}
+#etnPublicTournamentResults input,#etnPublicTournamentResults select{width:100%;box-sizing:border-box;border:1px solid #55416b;border-radius:9px;background:#17111f;color:white;padding:10px}
+#etnPublicTournamentResults button{margin-top:14px;background:linear-gradient(110deg,#bd55ff,#7228dc);color:white;border:0;border-radius:12px;padding:12px 18px;font-weight:700;cursor:pointer}
+#etnTournamentResultStatus{margin-left:10px;font-size:13px}
+@media(max-width:600px){#etnPublicTournamentResults .etn-tr-grid{grid-template-columns:1fr}}
+</style>
+<script>
+(function(){
+  function mountTournamentResults(){
+    const adminPage=document.getElementById('admin');
+    if(!adminPage || document.getElementById('etnPublicTournamentResults')) return;
+    const panel=document.createElement('section');
+    panel.id='etnPublicTournamentResults';
+    panel.innerHTML=`
+      <h3>🏆 Регистрация результатов турнира</h3>
+      <p style="font-size:13px;color:#bcb1c9;margin:0 0 14px">ETN RAPIRA · сохранение результата турнира</p>
+      <form id="etnTournamentResultForm">
+        <div class="etn-tr-grid">
+          <label>Название турнира<input name="name" value="ETN RAPIRA" required></label>
+          <label>Команда<input name="team" placeholder="Название команды" required></label>
+          <label>Формат<select name="format"><option>Олимпийская (SE)</option><option>Double Elimination (DE)</option><option>Swiss</option></select></label>
+          <label>Призовой фонд (₽)<input name="prize" type="number" min="0" placeholder="20000" value="0"></label>
+          <label>Команд в турнире<input name="teamCount" type="number" min="2" value="16"></label>
+          <label>Итоговое место<input name="place" type="number" min="1" value="1" required></label>
+          <label>Очки за стадии/победы<input name="points" type="number" min="0" value="0"></label>
+          <label>Победы в Swiss<input name="swissWins" type="number" min="0" value="0"></label>
+        </div>
+        <button type="submit">Сохранить результат</button><span id="etnTournamentResultStatus" role="status"></span>
+      </form>
+      <div id="etnTournamentResultList" style="margin-top:16px;font-size:13px;color:#c9bdd5"></div>`;
+    adminPage.appendChild(panel);
+    const form=panel.querySelector('#etnTournamentResultForm');
+    const status=panel.querySelector('#etnTournamentResultStatus');
+    const list=panel.querySelector('#etnTournamentResultList');
+    async function load(){
+      try{
+        const d=await api('/api/state/etn_tournament_results_v1');
+        const items=Array.isArray(d.value)?d.value:[];
+        list.innerHTML=items.length ? '<b>Сохранённые результаты</b><ul>'+items.map(x=>'<li>'+[x.name,x.team,x.format,'место '+x.place,'очки '+x.points].map(v=>String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))).join(' · ')+'</li>').join('')+'</ul>' : 'Пока нет сохранённых результатов.';
+      }catch(e){list.textContent='Не удалось загрузить результаты: '+e.message;}
+    }
+    form.addEventListener('submit',async e=>{
+      e.preventDefault(); const fd=new FormData(form); const item={};
+      for(const [k,v] of fd.entries()) item[k]=['prize','teamCount','place','points','swissWins'].includes(k)?Number(v||0):String(v).trim();
+      item.createdAt=new Date().toISOString();
+      status.textContent='Сохраняю…';
+      try{
+        const current=await api('/api/state/etn_tournament_results_v1');
+        const items=Array.isArray(current.value)?current.value:[];
+        items.unshift(item);
+        await api('/api/state/etn_tournament_results_v1',{method:'PUT',body:JSON.stringify({value:items})});
+        status.textContent='Результат сохранён'; form.elements.team.value=''; await load();
+      }catch(err){status.textContent='Ошибка: '+err.message;}
+    });
+    load();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',mountTournamentResults);
+  else mountTournamentResults();
+  document.addEventListener('click',()=>setTimeout(mountTournamentResults,50));
+})();
+</script>
 </body></html>

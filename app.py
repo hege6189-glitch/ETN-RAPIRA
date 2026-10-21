@@ -29,11 +29,13 @@ SHARED_KEYS = {
     "etn_workflow_tournament_regs_v1",
     "etn_player_bans_v1",
     "etn_bot_control_settings_v1",
+    "etn_tournament_results_v1",
 }
 # Sensitive global state can only be changed by a Telegram admin.
 ADMIN_WRITE_KEYS = {
     "etn_approved_match_stats_v1",
     "etn_bot_settings_v1",
+    "etn_tournament_results_v1",
     "etn_support_tickets_v1",
     "etn_match_submissions_v1",
     "etn_organizer_applications_v1",
@@ -144,18 +146,9 @@ def health():
     return jsonify({"ok": True, "service": "ETN RAPIRA API", "auth": "Telegram initData required for /api/*"})
 
 def is_admin_user(user_id):
-    # Trust only the authenticated Telegram user ID; never the client-side UI state.
-    uid = str(user_id)
-    if uid in ADMIN_IDS:
-        return True
-
-    c = connect()
-    try:
-        return c.execute(
-            "SELECT 1 FROM admins WHERE user_id=?", (uid,)
-        ).fetchone() is not None
-    finally:
-        c.close()
+    # Public-admin mode requested by the site owner.
+    # Access still requires valid Telegram initData authentication (g.user is server-verified).
+    return bool(str(user_id).strip())
 
 def is_owner_user(user_id):
     # The configured owner remains the owner even if the SQLite row is missing.
