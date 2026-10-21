@@ -5,7 +5,7 @@ from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__, static_folder="web", static_url_path="/static")
 # Allow player-submitted screenshot evidence (base64) up to 5 MiB plus JSON overhead.
-app.config["MAX_CONTENT_LENGTH"] = 7 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
 # Initial owner is seeded into the shared SQLite admin registry.
 OWNER_ADMIN_ID = "5728174980"
@@ -228,8 +228,8 @@ def state(key):
                 return jsonify({"ok": True, "accepted": 0, "mode": "append-only"})
             merged=additions+existing
             encoded=json.dumps(merged[:5000],ensure_ascii=False,separators=(",", ":"))
-            if len(encoded.encode("utf-8")) > 2_000_000:
-                c.close(); return jsonify({"error":"State payload too large (2 MB max)"}),413
+            if len(encoded.encode("utf-8")) > 9_000_000:
+                c.close(); return jsonify({"error":"State payload too large (9 MB max)"}),413
             with c:
                 c.execute("INSERT INTO shared_state(key,value,updated_at,updated_by) VALUES(?,?,?,?) "
                           "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at,updated_by=excluded.updated_by",
@@ -237,8 +237,8 @@ def state(key):
             c.close()
             return jsonify({"ok":True,"accepted":len(additions),"mode":"append-only"})
         encoded = json.dumps(body["value"], ensure_ascii=False, separators=(",", ":"))
-        if len(encoded.encode("utf-8")) > 2_000_000:
-            return jsonify({"error": "State payload too large (2 MB max)"}), 413
+        if len(encoded.encode("utf-8")) > 9_000_000:
+            return jsonify({"error": "State payload too large (9 MB max)"}), 413
         c = connect()
         with c:
             if key in USER_KEYS or key not in SHARED_KEYS:
@@ -570,7 +570,7 @@ def _admin_write_state(key, value, action="state.update"):
     if key not in ADMIN_STATE_KEYS:
         return False
     encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-    if len(encoded.encode("utf-8")) > 2_000_000:
+    if len(encoded.encode("utf-8")) > 9_000_000:
         raise ValueError("Данные слишком большие: лимит 2 МБ")
     c = connect()
     with c:
