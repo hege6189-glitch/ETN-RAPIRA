@@ -160,6 +160,10 @@ main{padding:14px}
 .bottom .nav #adminPinNavButton{display:flex!important;grid-column:auto!important;grid-row:auto!important}
 .bottom .nav #adminNavButton{display:none!important}
 @media(max-width:420px){.bottom .nav{gap:1px!important}.bottom .nav button{font-size:9px!important;padding:4px 0!important}.bottom .nav button span{font-size:17px!important}}
+
+#etnServerAdminShell .etn-admin-card .etn-refresh-card-btn{float:right;margin:-2px 0 8px 8px;padding:6px 10px;border:1px solid #555;border-radius:10px;background:#151515;color:#fff;font:inherit;cursor:pointer}
+#etnServerAdminShell .etn-admin-card .etn-refresh-card-btn:active{transform:scale(.98)}
+#etnServerAdminShell .etn-admin-card:after{content:"";display:block;clear:both}
 </style>
 <script>
 /* ETN local-PC backend bridge: syncs the current browser's app storage to its Telegram user record.
@@ -265,14 +269,74 @@ nav.bottom .nav button.active span{background:linear-gradient(145deg,#d4a5ff,#7c
 <style id="etn-remove-duplicate-sections-panel">
   #etnEmojiDock, .etn-dock-label, .etn-fixed-icon { display:none !important; visibility:hidden !important; height:0 !important; min-height:0 !important; max-height:0 !important; padding:0 !important; margin:0 !important; overflow:hidden !important; }
 </style>
-<style>.etn-admin-emblem,.etn-admin-tabs button,.etn-admin-kpis small{filter:grayscale(1)}.etn-admin-card,.etn-admin-kpis>div{border-radius:16px}</style></head>
+<style>.etn-admin-emblem,.etn-admin-tabs button,.etn-admin-kpis small{filter:grayscale(1)}.etn-admin-card,.etn-admin-kpis>div{border-radius:16px}</style><style id="etn-sticker-bottom-nav">
+
+/* ETN RAPIRA — sticker-inspired bottom navigation */
+.bottom{
+  background:linear-gradient(180deg,rgba(12,10,18,.92),rgba(5,5,8,.98))!important;
+  border:1px solid rgba(188,143,255,.42)!important;
+  border-bottom-color:rgba(255,255,255,.24)!important;
+  border-radius:24px!important;
+  left:12px!important;right:12px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;
+  padding:8px 7px!important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.04),0 10px 36px rgba(0,0,0,.65),0 0 24px rgba(168,85,247,.10)!important;
+  backdrop-filter:blur(18px)!important;
+}
+.bottom .nav{
+  max-width:760px!important;gap:4px!important;align-items:stretch!important;
+}
+.bottom .nav button{
+  position:relative!important;min-width:0!important;min-height:58px!important;
+  display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
+  gap:3px!important;padding:6px 2px!important;border:1px solid transparent!important;
+  border-radius:16px!important;background:transparent!important;
+  color:#9993a6!important;font-size:9px!important;font-weight:800!important;
+  letter-spacing:1px!important;text-transform:uppercase!important;
+  transition:background .18s ease,border-color .18s ease,transform .18s ease,color .18s ease!important;
+}
+.bottom .nav button span{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  width:32px!important;height:32px!important;margin:0!important;
+  border-radius:11px!important;border:1px solid rgba(255,255,255,.13)!important;
+  background:linear-gradient(145deg,#1c1922,#0c0b10)!important;
+  color:#f7f0ff!important;font-size:19px!important;line-height:1!important;
+  text-shadow:0 0 10px rgba(192,132,252,.22)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05)!important;
+}
+.bottom .nav button.active{
+  color:#fff!important;border-color:rgba(192,132,252,.75)!important;
+  background:linear-gradient(145deg,rgba(116,47,171,.32),rgba(35,18,49,.72))!important;
+  box-shadow:inset 0 0 0 1px rgba(192,132,252,.13),0 0 18px rgba(168,85,247,.14)!important;
+}
+.bottom .nav button.active span{
+  color:#fff!important;border-color:rgba(216,180,254,.8)!important;
+  background:linear-gradient(145deg,#55227d,#21112e)!important;
+  box-shadow:0 0 14px rgba(168,85,247,.25),inset 0 1px 0 rgba(255,255,255,.12)!important;
+}
+.bottom .nav button:active{transform:scale(.96)!important}
+.bottom .nav button[data-page="admin"] span{color:#d8b4fe!important}
+.bottom .nav .admin-pin-nav{grid-column:1 / -1!important}
+@media(max-width:390px){
+ .bottom{left:7px!important;right:7px!important;padding:6px 3px!important;border-radius:20px!important}
+ .bottom .nav{gap:1px!important}
+ .bottom .nav button{font-size:8px!important;letter-spacing:.6px!important;min-height:54px!important}
+ .bottom .nav button span{width:29px!important;height:29px!important;font-size:17px!important}
+}
+
+</style>
+
+<style id="etn-bottom-nav-monochrome-icons">
+.bottom .nav button .nav-sticker-icon{display:flex;align-items:center;justify-content:center;color:currentColor;line-height:1;flex:0 0 auto}
+.bottom .nav button .nav-sticker-icon svg{width:23px;height:23px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+</style>
+</head>
 <body><div class="app">
 <header><div class="brand"><div class="logo" aria-label="ETN">ETN</div><div><b>ETN</b><small>ESPORTS TOURNAMENT NETWORK</small></div></div><div style="display:flex;align-items:center;gap:10px"><button id="etnHeaderRegisterBtn" class="primary" type="button" onclick="openETNRegister()" style="padding:10px 14px;border-radius:12px">Регистрация</button><button class="header-account" id="headerAccountBtn" onclick="toggleAccountMenu()" aria-label="Открыть меню аккаунта"><span id="headerAccountAvatar">✦</span></button></div></header>
 <div class="account-menu-backdrop" id="accountMenuBackdrop" onclick="closeAccountMenu()"></div>
 <aside class="account-menu" id="accountMenu" aria-label="Меню аккаунта">
  <div class="account-menu-user"><div class="account-menu-avatar" id="accountMenuAvatar">✦</div><div><strong id="accountMenuNick">Игрок ETN</strong><span><i></i> PLAYER</span></div></div>
  <div class="account-menu-links">
-  <button onclick="accountMenuGo('profile')">◈　Профиль</button><button onclick="accountMenuGo('home')">⌘　Дашборд</button><button onclick="accountMenuGo('clans')">⬡　Мой клан</button><button onclick="accountMenuGo('messages')">✉　Сообщения</button><button onclick="accountMenuGo('support')">◇　Тикеты</button><button onclick="accountMenuGo('organizer')">✧　Стать организатором</button>
+  <button onclick="accountMenuGo('profile')">◈　Профиль</button><button onclick="accountMenuGo('home')">⌘　Дашборд</button><button onclick="accountMenuGo('clans')">⬡　Мой клан</button><button onclick="accountMenuGo('messages')">✉　Сообщения</button><button onclick="accountMenuGo('support')">◇　Тикеты</button>
  </div><div class="account-menu-footer"><button onclick="accountMenuGo('settings')">⚙　Настройки</button><button class="logout" onclick="etnLogout()">⇥　Выйти</button></div>
 </aside>
 <main>
@@ -302,18 +366,6 @@ nav.bottom .nav button.active span{background:linear-gradient(145deg,#d4a5ff,#7c
 <div class="card event"><div class="eventicon">🔥</div><div class="grow"><b>ETN WEEKLY</b><small>5×5 · Group + Playoff</small><small>Призовой фонд: 1 500 очков · Команд зарегистрировано: 0</small><span class="tag green">Идёт</span></div><button class="rowbtn" onclick="showBracket('ETN WEEKLY')">Сетка</button></div>
 </div>
 
-<div class="head"><h2>Заявка на проведение турнира</h2><span class="muted">ETN ORGANIZER</span></div>
-<div class="card" style="padding:14px"><p class="muted" style="font-size:12px;margin-top:0">Хочешь проводить турниры на ETN? Заполни заявку — администрация рассмотрит её.</p>
-<form id="organizerApplicationForm" class="organizer-form">
-<div class="organizer-contact-grid"><div><label for="organizerTelegram">Telegram *</label><input id="organizerTelegram" maxlength="64" placeholder="@username" required></div></div>
-<div class="muted">Укажи свой Telegram для связи по заявке.</div>
-<div><label for="organizerExperience">Опыт организации турниров * <span id="organizerExperienceCount">0/2000 (минимум 20)</span></label><textarea id="organizerExperience" minlength="20" maxlength="2000" required placeholder="Расскажи, какие турниры проводил, как организовывал сетки, матчи и результаты…"></textarea></div>
-<div><label for="organizerPortfolio">Ссылка на портфолио или прошлые турниры</label><input id="organizerPortfolio" type="url" maxlength="300" placeholder="https://…"><small class="muted">Необязательно</small></div>
-<div class="organizer-info"><b>Что нужно знать организатору</b><br>Организатор может создавать турниры, управлять сетками, расписанием матчей и результатами. Вы несёте ответственность за честность и своевременное проведение своих турниров.</div>
-<div class="organizer-info"><b>Правила платформы</b><br>Запрещены накрутки, договорные матчи и оскорбления участников. Нарушение правил ведёт к снятию роли организатора и блокировке аккаунта.</div>
-<label class="organizer-rules"><input id="organizerRulesAccepted" type="checkbox" required><span>Я прочитал(а) и принимаю правила платформы, а также ответственность организатора.</span></label>
-<button class="primary" type="submit">Отправить заявку</button></form><div id="organizerApplicationStatus" class="profile-empty" style="margin-top:10px"></div></div>
-<div class="notice">В этой HTML-версии заявка сохраняется локально на устройстве. Чтобы она поступала администратору и была видна с других устройств, потребуется сервер или интеграция с Telegram-ботом.</div>
 <div class="notice">Турниры здесь показаны как примеры интерфейса. Команды, игроки и результаты не предзаполнены. Реальные регистрации и счётчики появятся после подключения API/базы данных.</div></section>
 <section class="page" id="rating">
  <div class="profile-tabs rating-tabs" style="margin:4px 0 16px"><button class="active" onclick="ratingTab('teams',this)">♜ Рейтинг команд</button><button onclick="ratingTab('players',this)">🎯 Рейтинг игроков</button></div>
@@ -466,7 +518,7 @@ nav.bottom .nav button.active span{background:linear-gradient(145deg,#d4a5ff,#7c
 </section>
 
 </main>
-<nav class="bottom"><div class="nav"><button class="active" data-page="home" onclick="go('home')"><span>⌂</span>Главная</button><button data-page="tournaments" onclick="go('tournaments')"><span>✧</span>Турниры</button><button data-page="matches" onclick="go('matches')"><span>⚡</span>Матчи</button><button data-page="clans" onclick="go('clans')"><span>⬡</span>Команды</button><button data-page="rating" onclick="go('rating')"><span>✧</span>Рейтинг</button><button data-page="profile" onclick="go('profile')"><span>✦</span>Профиль</button><button data-page="support" onclick="go('support')"><span>◇</span>Помощь</button><button data-page="admin" id="adminNavButton" style="display:none" onclick="go('admin')"><span>⚙</span>Админ</button></div></nav>
+<nav class="bottom"><div class="nav"><button class="active" data-page="home" onclick="go('home')"><span>⌂</span>Главная</button><button data-page="tournaments" onclick="go('tournaments')"><span class="nav-sticker-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M8 6H4v2a4 4 0 0 0 4 4M16 6h4v2a4 4 0 0 1-4 4M12 12v5M8 20h8M9 17h6"/></svg></span>Турниры</button><button data-page="matches" onclick="go('matches')"><span class="nav-sticker-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m13 2-8 12h6l-1 8 9-13h-6l1-7Z"/></svg></span>Матчи</button><button data-page="clans" onclick="go('clans')"><span>⬡</span>Команды</button><button data-page="rating" onclick="go('rating')"><span class="nav-sticker-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 2.5 5.1 5.6.8-4.1 4 .97 5.6L12 15.9l-4.97 2.6.95-5.6-4.08-4 5.64-.8L12 3Z"/><path d="M5 21h14"/></svg></span>Рейтинг</button><button data-page="profile" onclick="go('profile')"><span class="nav-sticker-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></span>Профиль</button><button data-page="support" onclick="go('support')"><span class="nav-sticker-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4.3 1.7c-1.1 1.1-1.9 1.4-1.9 3M12 17.5h.01"/></svg></span>Помощь</button><button data-page="admin" id="adminNavButton" style="display:none" onclick="go('admin')"><span>⚙</span>Админ</button></div></nav>
 <div class="toast" id="toast"></div>
 <div id="adminPinModal" class="admin-pin-modal" aria-hidden="true" style="display:none">
   <div class="admin-pin-modal-card" role="dialog" aria-modal="true" aria-labelledby="adminPinModalTitle">
@@ -2340,6 +2392,53 @@ window.adminAccessInit=function(){const result=typeof oldAdminAccessInit==='func
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureVisible);
   window.addEventListener('load',ensureVisible);
   setTimeout(ensureVisible,500);setTimeout(ensureVisible,1800);setTimeout(ensureVisible,3500);
+})();
+</script>
+
+
+<script id="etn-admin-refresh-everywhere-fix">
+(function(){
+  function refreshEverything(btn){
+    if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent='↻ Обновляю…';}
+    var jobs=[];
+    try{if(typeof window.etnAdminRefresh==='function')jobs.push(Promise.resolve(window.etnAdminRefresh()));}catch(e){console.error(e)}
+    try{if(typeof window.adminRefresh==='function')jobs.push(Promise.resolve(window.adminRefresh()));}catch(e){console.error(e)}
+    try{if(typeof window.etnAdminLoadStates==='function')jobs.push(Promise.resolve(window.etnAdminLoadStates()));}catch(e){console.error(e)}
+    return Promise.allSettled(jobs).then(function(){
+      if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'↻ Обновить';}
+      try{if(typeof window.toast==='function')window.toast('Данные админ-панели обновлены');}catch(e){}
+    });
+  }
+  function addRefreshButtons(){
+    var shell=document.getElementById('etnServerAdminShell');
+    if(shell){
+      shell.querySelectorAll('.etn-admin-card').forEach(function(card){
+        if(card.querySelector('.etn-refresh-card-btn'))return;
+        // Do not replace or duplicate any refresh control already present in this card.
+        var existingRefresh=Array.prototype.find.call(card.querySelectorAll('button,[role=button],input[type=button],input[type=submit]'),function(x){return /обновить|refresh|перезагрузить/i.test((x.innerText||x.value||x.getAttribute('aria-label')||x.title||'').trim());});
+        if(existingRefresh){existingRefresh.dataset.etnExistingRefresh='1';return;}
+        var b=document.createElement('button');b.type='button';b.className='etn-refresh-card-btn';b.textContent='↻ Обновить';
+        b.addEventListener('click',function(){refreshEverything(b)});
+        var heading=card.querySelector('h3');
+        if(heading)heading.insertAdjacentElement('afterend',b);else card.insertBefore(b,card.firstChild);
+      });
+    }
+    // Keep the legacy admin toolbar refresh action working through the same combined refresh.
+    document.querySelectorAll('#adminConsole button[onclick*="adminRefresh()"],#adminConsole button[onclick*="adminRefresh("]').forEach(function(b){
+      if(b.dataset.etnCombinedRefresh)return;b.dataset.etnCombinedRefresh='1';
+      b.addEventListener('click',function(){refreshEverything(b)});
+    });
+  }
+  document.addEventListener('DOMContentLoaded',addRefreshButtons);
+  window.addEventListener('load',addRefreshButtons);
+  setTimeout(addRefreshButtons,500);setTimeout(addRefreshButtons,1800);setTimeout(addRefreshButtons,3500);
+  // Auto-refresh queues while the admin panel is open so new applications/messages appear without manual reload.
+  setInterval(function(){
+    var shell=document.getElementById('etnServerAdminShell');
+    var legacy=document.getElementById('adminConsole');
+    var visible=(shell&&shell.offsetParent!==null&&getComputedStyle(shell).display!=='none') || (legacy&&legacy.offsetParent!==null&&getComputedStyle(legacy).display!=='none');
+    if(visible && !document.hidden) refreshEverything(null);
+  },30000);
 })();
 </script>
 
