@@ -2337,34 +2337,7 @@ window.adminAccessInit=function(){const result=typeof oldAdminAccessInit==='func
 })();
 </script>
 
-<script id="etn-admin-menu-final-fix">
-/* Final navigation override: always show the Admin menu item and open the panel without ID/PIN gating. */
-(function(){
-  function showAdminButton(){
-    var b=document.getElementById('adminNavButton');
-    if(b){ b.style.setProperty('display','flex','important'); b.style.visibility='visible'; b.style.opacity='1'; }
-    document.querySelectorAll('[data-page="admin"]').forEach(function(x){x.style.setProperty('display','flex','important');});
-  }
-  window.isAuthorizedAdmin=function(){return true;};
-  window.adminAccessInit=function(){showAdminButton();return true;};
-  window.adminGateOpen=function(){
-    showAdminButton();
-    var gate=document.getElementById('etnAdminGate'); if(gate) gate.style.display='none';
-    var app=document.getElementById('etnAdminApp'); if(app) app.style.display='block';
-    var admin=document.getElementById('admin'); if(admin) admin.classList.add('active');
-    document.querySelectorAll('.page').forEach(function(p){if(p.id!=='admin')p.classList.remove('active');});
-    document.querySelectorAll('.nav button').forEach(function(b){b.classList.toggle('active',b.dataset.page==='admin');});
-    try{if(typeof window.etnAdminInit==='function')window.etnAdminInit(true);}catch(e){console.error(e);}
-    try{if(typeof window.adminRefresh==='function')window.adminRefresh();}catch(e){}
-    window.scrollTo({top:0,behavior:'smooth'});
-  };
-  var oldGo=window.go; window.go=function(id){if(id==='admin'){window.adminGateOpen();return;} if(typeof oldGo==='function')return oldGo.apply(this,arguments);};
-  document.addEventListener('DOMContentLoaded',showAdminButton);
-  window.addEventListener('load',showAdminButton);
-  showAdminButton();
-  setTimeout(showAdminButton,300); setTimeout(showAdminButton,1500); setTimeout(showAdminButton,3000);
-})();
-</script>
+
 
 
 <script id="etn-admin-buttons-final-fix">
@@ -2580,6 +2553,16 @@ window.adminAccessInit=function(){const result=typeof oldAdminAccessInit==='func
 })();
 </script>
 
+
+<script id="etn-owner-admin-visibility-fix">
+(function(){
+  function currentId(){try{return String(window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initDataUnsafe&&Telegram.WebApp.initDataUnsafe.user&&Telegram.WebApp.initDataUnsafe.user.id||'')}catch(e){return ''}}
+  function sync(){var id=currentId(), owner=id==='5728174980'; var b=document.getElementById('adminNavButton'); if(b)b.style.setProperty('display',owner?'flex':'none','important'); var pin=document.getElementById('adminPinNavButton'); if(pin)pin.style.setProperty('display',owner?'flex':'none','important');}
+  window.isAuthorizedAdmin=function(){return currentId()==='5728174980'};
+  var oldGo=window.go; window.go=function(id){if(id==='admin'&&!window.isAuthorizedAdmin()){if(typeof window.toast==='function')window.toast('Доступ только для овнера ETN RAPIRA');return;}if(typeof oldGo==='function')return oldGo.apply(this,arguments);};
+  document.addEventListener('DOMContentLoaded',sync); window.addEventListener('load',sync); sync();
+})();
+</script>
 </body></html>
 
 \n<script id="etn-first-screen-auth-choice">\n(function(){\n function init(){\n  var overlay=document.getElementById('etnRegOverlay');\n  var reg=document.getElementById('etnRegForm');\n  var login=document.getElementById('etnLoginBox');\n  if(!overlay||!reg||!login)return;\n  var active=false;try{active=!!localStorage.getItem('etn_active_account_v1')}catch(e){}\n  if(active)return;\n  if(document.getElementById('etnFirstAuthChoice'))return;\n  var choice=document.createElement('div');choice.id='etnFirstAuthChoice';\n  choice.style.cssText='padding:22px 18px 26px;text-align:center;max-width:440px;margin:0 auto;position:relative;z-index:99999';\n  choice.innerHTML='<div style="font-size:38px;font-weight:900;letter-spacing:3px;margin:8px 0 6px">ETN</div><h2 style="margin:0 0 8px;color:#fff">Добро пожаловать в ETN RAPIRA</h2><p style="margin:0 0 22px;color:#a8adbb;font-size:14px">Войди в аккаунт или создай новый, чтобы продолжить</p><button type="button" id="etnFirstLoginBtn" style="display:block;width:100%;padding:14px;margin:10px 0;border:0;border-radius:12px;background:#8b5cf6;color:white;font-weight:800;font-size:15px">Войти в аккаунт</button><button type="button" id="etnFirstRegisterBtn" style="display:block;width:100%;padding:14px;margin:10px 0;border:1px solid #555b6d;border-radius:12px;background:#171922;color:white;font-weight:800;font-size:15px">Создать аккаунт</button>';

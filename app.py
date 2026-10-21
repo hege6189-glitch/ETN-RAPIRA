@@ -146,13 +146,23 @@ def health():
     return jsonify({"ok": True, "service": "ETN RAPIRA API", "auth": "Telegram initData required for /api/*"})
 
 def is_admin_user(user_id):
-    # Public admin mode requested by the project owner:
-    # any authenticated Telegram Mini App user may use admin features.
-    return True
+    # Authorization is enforced server-side using the persistent admin registry.
+    uid = str(user_id)
+    c = connect()
+    try:
+        return c.execute("SELECT 1 FROM admins WHERE user_id=?", (uid,)).fetchone() is not None
+    finally:
+        c.close()
 
 def is_owner_user(user_id):
-    # Public admin mode: no owner-only restriction in the UI/API.
-    return True
+    # Only the configured owner can manage the admin roster.
+    uid = str(user_id)
+    c = connect()
+    try:
+        row = c.execute("SELECT role FROM admins WHERE user_id=?", (uid,)).fetchone()
+        return bool(row and row["role"] == "owner" and uid == OWNER_ADMIN_ID)
+    finally:
+        c.close()
 
 @app.get("/api/me")
 def me():
@@ -472,7 +482,7 @@ def admin_setup_pin():
 
 @app.get("/api/admin/admins")
 def admin_list_admins():
-    if not _admin_allowed(): return _admin_denied()
+    if not is_owner_user(g.user["id"]): return _admin_denied()
     c=connect()
     rows=c.execute("SELECT user_id,role,added_by,created_at FROM admins ORDER BY CASE role WHEN 'owner' THEN 0 ELSE 1 END, created_at").fetchall()
     c.close()
@@ -480,7 +490,7 @@ def admin_list_admins():
 
 @app.post("/api/admin/admins")
 def admin_add_admin():
-    if not _admin_allowed(): return _admin_denied()
+    if not is_owner_user(g.user["id"]): return _admin_denied()
     body=request.get_json(silent=True) or {}
     uid=str(body.get("user_id","")).strip()
     if not uid.isdigit() or len(uid)>20: return jsonify({"error":"Укажите числовой Telegram ID"}),400
@@ -496,7 +506,7 @@ def admin_add_admin():
 
 @app.delete("/api/admin/admins/<user_id>")
 def admin_remove_admin(user_id):
-    if not _admin_allowed(): return _admin_denied()
+    if not is_owner_user(g.user["id"]): return _admin_denied()
     if str(user_id)==OWNER_ADMIN_ID: return jsonify({"error":"Нельзя удалить главного администратора"}),403
     c=connect()
     cur=c.execute("DELETE FROM admins WHERE user_id=? AND role='admin'",(str(user_id),))
