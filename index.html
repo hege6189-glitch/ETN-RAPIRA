@@ -2391,6 +2391,107 @@ document.addEventListener('DOMContentLoaded',syncOneTimeAdminPinBox);
 </script>
 
 \n<script id="etn-first-entry-choice-fix">\n(function(){\n function init(){\n  var overlay=document.getElementById('etnRegOverlay'); if(!overlay)return;\n  if(document.getElementById('etnFirstEntryChoice'))return;\n  var wrap=overlay.querySelector('.etn-reg-wrap'); if(!wrap)return;\n  var choice=document.createElement('div'); choice.id='etnFirstEntryChoice'; choice.style.cssText='display:none;text-align:center;padding:12px 0 20px';\n  choice.innerHTML='<div style="font-size:12px;letter-spacing:3px;color:#a78bfa;font-weight:800;margin:8px 0 14px">ESPORTS TOURNAMENT NETWORK</div><h1 style="font-size:28px;margin:0 0 8px">Добро пожаловать в ETN</h1><p style="color:#a7a7b5;margin:0 0 24px">Войди в аккаунт или создай новый</p><button type="button" id="etnFirstLoginBtn" class="primary" style="width:100%;padding:15px;margin:0 0 10px">Войти в аккаунт</button><button type="button" id="etnFirstRegisterBtn" class="secondary" style="width:100%;padding:15px">Создать аккаунт</button>';\n  var first=wrap.querySelector('h1'); wrap.insertBefore(choice, first||wrap.firstChild);\n  var reg=document.getElementById('etnRegForm');\n  var login=document.getElementById('etnLoginBox');\n  var switchBtn=document.getElementById('etnAuthSwitch');\n  function hasAccount(){try{return !!JSON.parse(localStorage.getItem('etn_active_account_v1')||'null')}catch(e){return false}}\n  function showChoice(){if(hasAccount()){choice.style.display='none';return} choice.style.display='block'; if(reg)reg.style.display='none'; if(login)login.style.display='none'; if(switchBtn)switchBtn.style.display='none'; var h=wrap.querySelector('h1'); if(h&&h!==choice.querySelector('h1'))h.style.display='none'; var sub=wrap.querySelector('.etn-reg-sub');if(sub)sub.style.display='none'; var close=wrap.querySelector('#etnRegClose');if(close)close.style.display='none';}\n  function showForm(mode){choice.style.display='none';var h=wrap.querySelector('h1');if(h)h.style.display='';var sub=wrap.querySelector('.etn-reg-sub');if(sub)sub.style.display='';var close=wrap.querySelector('#etnRegClose');if(close)close.style.display='';if(switchBtn)switchBtn.style.display='';if(typeof window.etnOpenLogin==='function'&&mode==='login'){window.etnOpenLogin()}else if(typeof window.etnOpenRegister==='function'&&mode==='register'){window.etnOpenRegister()} if(reg)reg.style.display=mode==='register'?'':'none';if(login)login.style.display=mode==='login'?'block':'none';var title=wrap.querySelector('h1');if(title)title.textContent=mode==='login'?'Войти в аккаунт':'Создать аккаунт';}\n  var lb=document.getElementById('etnFirstLoginBtn'), rb=document.getElementById('etnFirstRegisterBtn');if(lb)lb.addEventListener('click',function(){showForm('login')});if(rb)rb.addEventListener('click',function(){showForm('register')});\n  if(!hasAccount())showChoice();\n  window.addEventListener('etn:account-created',function(){choice.style.display='none'});\n  var oldLogout=window.etnLogout; if(typeof oldLogout==='function'&&!oldLogout.__entryFix){var wrapped=function(){oldLogout.apply(this,arguments);setTimeout(showChoice,0)};wrapped.__entryFix=true;window.etnLogout=wrapped;}\n }\n if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();\n})();\n</script>\n
+
+<script id="etn-server-tournament-and-match-submit-fix">
+(function(){
+  const API='/api/state/';
+  const tg=window.Telegram&&window.Telegram.WebApp;
+  function initData(){return tg&&tg.initData||''}
+  async function api(path,opts={}) {
+    const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json','X-Telegram-Init-Data':initData(),...(opts.headers||{})}});
+    let d={};try{d=await r.json()}catch(_){}
+    if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+    return d;
+  }
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  async function loadPublishedTournaments(){
+    const section=document.getElementById('tournaments'); if(!section)return;
+    let host=document.getElementById('etnServerTournamentList');
+    if(!host){host=document.createElement('div');host.id='etnServerTournamentList';host.className='list';const notice=section.querySelector('.notice');(notice||section).before(host);}
+    try{
+      const d=await api(API+'etn_workflow_tournaments_v1');
+      const tours=Array.isArray(d.value)?d.value:[];
+      host.innerHTML=tours.map(t=>{
+        const status=t.status||'Регистрация открыта';
+        const fmt=t.format||'Формат не указан';
+        const prize=t.prize||t.award||'';
+        const date=t.date||'';
+        const limit=t.limit?(' · до '+t.limit+' команд'):'';
+        const image=t.avatar?'<img src="'+esc(t.avatar)+'" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:10px">':'<div class="eventicon">🏆</div>';
+        return '<div class="card event">'+image+'<div class="grow"><b>'+esc(t.name||'Турнир ETN')+'</b><small>'+esc(fmt)+' · '+esc(t.system||'Single Elimination')+limit+'</small><small>'+esc(date)+(prize?' · Приз: '+esc(prize):'')+'</small><span class="tag">'+esc(status)+'</span>'+(t.description?'<small>'+esc(t.description)+'</small>':'')+'</div><button class="rowbtn" type="button" onclick="join('+JSON.stringify(String(t.name||'Турнир'))+')">Заявка</button></div>';
+      }).join('');
+    }catch(e){host.innerHTML='<div class="notice">Не удалось загрузить турниры с сервера. Проверь подключение и обнови страницу.</div>';}
+  }
+  // Replace the old local-only screenshot submission with a server-backed append-only submission.
+  function installMatchSubmit(){
+    const btn=document.getElementById('etnSaveScreenshotMatch');
+    if(!btn||btn.dataset.serverSubmitFix)return;
+    btn.dataset.serverSubmitFix='1';
+    btn.addEventListener('click',async function(ev){
+      ev.preventDefault();ev.stopImmediatePropagation();
+      const file=document.getElementById('etnMatchShot')?.files?.[0];
+      const status=document.getElementById('etnScreenshotOcrStatus');
+      const val=id=>document.getElementById(id)?.value||'';
+      const teamA=val('etnShotTeamA'),teamB=val('etnShotTeamB');
+      const scoreA=Number(val('etnShotScoreA')),scoreB=Number(val('etnShotScoreB'));
+      const tournament=prompt('Название турнира:','ETN RAPIRA');
+      if(!file){if(status)status.textContent='Сначала загрузи скриншот.';return}
+      if(file.size>5*1024*1024){if(status)status.textContent='Скриншот должен быть не больше 5 МБ.';return}
+      if(!tournament||!tournament.trim()){if(status)status.textContent='Укажи название турнира.';return}
+      if(!teamA||!teamB||teamA===teamB){if(status)status.textContent='Выбери два разных клана.';return}
+      if(!Number.isInteger(scoreA)||!Number.isInteger(scoreB)||scoreA<0||scoreB<0||scoreA===scoreB){if(status)status.textContent='Укажи корректный счёт с победителем.';return}
+      const user=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user||{};
+      try{
+        if(status)status.textContent='Отправляю заявку на сервер для проверки администратором…';
+        const screenshot=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(new Error('Не удалось прочитать скриншот'));r.readAsDataURL(file)});
+        const id='match_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+        const item={id,type:'Турнирный матч',tournament:tournament.trim(),series:tournament.trim(),team1:teamA,team2:teamB,score1:scoreA,score2:scoreB,teamA,teamB,scoreA,scoreB,winner:scoreA>scoreB?teamA:teamB,players:[],screenshots:[{data:screenshot,name:file.name}],screenshot,fileName:file.name,ocrText:document.getElementById('etnScreenshotOcrText')?.textContent||'',date:new Date().toISOString(),createdAt:new Date().toISOString(),submitter:user.username?'@'+user.username:String(user.id||''),submittedBy:user.id||'',status:'На проверке'};
+        await api(API+'etn_match_submissions_v1',{method:'PUT',body:JSON.stringify({value:[item]})});
+        try{const k='etn_match_submissions_v1',a=JSON.parse(localStorage.getItem(k)||'[]');a.unshift(item);localStorage.setItem(k,JSON.stringify(a))}catch(_){}
+        if(status)status.textContent='Готово! Скриншот и данные матча отправлены в админ-панель на проверку.';
+        if(typeof window.toast==='function')window.toast('Матч отправлен администратору');
+      }catch(e){if(status)status.textContent='Не удалось отправить на сервер: '+e.message+' Проверь, что приложение открыто внутри Telegram.';}
+    },true);
+  }
+  function boot(){loadPublishedTournaments();installMatchSubmit();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,200));else setTimeout(boot,200);
+  document.addEventListener('click',e=>{if(e.target.closest('[data-page="tournaments"]')||e.target.closest('#adminNavButton'))setTimeout(loadPublishedTournaments,250)});
+})();
+</script>
+
+<script id="etn-monochrome-emoji-fix">
+(function(){
+  var emojiRE=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+  function mono(root){
+    if(!root) return;
+    var walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT), nodes=[], n;
+    while((n=walker.nextNode())) {
+      if(!n.parentElement || n.parentElement.closest('.etn-mono-emoji')) continue;
+      if(emojiRE.test(n.nodeValue)) nodes.push(n);
+    }
+    nodes.forEach(function(node){
+      var text=node.nodeValue, frag=document.createDocumentFragment(), part='', i=0;
+      while(i<text.length){
+        var cp=text.codePointAt(i), ch=String.fromCodePoint(cp), len=ch.length;
+        if(emojiRE.test(ch)){
+          if(part){frag.appendChild(document.createTextNode(part));part='';}
+          var span=document.createElement('span');
+          span.className='etn-mono-emoji'; span.textContent=ch;
+          span.style.filter='grayscale(1)'; span.style.webkitFilter='grayscale(1)';
+          frag.appendChild(span);
+        } else part+=ch;
+        i+=len;
+      }
+      if(part) frag.appendChild(document.createTextNode(part));
+      if(node.parentNode) node.parentNode.replaceChild(frag,node);
+    });
+  }
+  function run(){mono(document.body);}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run); else run();
+  var timer; new MutationObserver(function(){clearTimeout(timer);timer=setTimeout(run,60);}).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
+
 </body></html>
 
 \n<script id="etn-first-screen-auth-choice">\n(function(){\n function init(){\n  var overlay=document.getElementById('etnRegOverlay');\n  var reg=document.getElementById('etnRegForm');\n  var login=document.getElementById('etnLoginBox');\n  if(!overlay||!reg||!login)return;\n  var active=false;try{active=!!localStorage.getItem('etn_active_account_v1')}catch(e){}\n  if(active)return;\n  if(document.getElementById('etnFirstAuthChoice'))return;\n  var choice=document.createElement('div');choice.id='etnFirstAuthChoice';\n  choice.style.cssText='padding:22px 18px 26px;text-align:center;max-width:440px;margin:0 auto;position:relative;z-index:99999';\n  choice.innerHTML='<div style="font-size:38px;font-weight:900;letter-spacing:3px;margin:8px 0 6px">ETN</div><h2 style="margin:0 0 8px;color:#fff">Добро пожаловать в ETN RAPIRA</h2><p style="margin:0 0 22px;color:#a8adbb;font-size:14px">Войди в аккаунт или создай новый, чтобы продолжить</p><button type="button" id="etnFirstLoginBtn" style="display:block;width:100%;padding:14px;margin:10px 0;border:0;border-radius:12px;background:#8b5cf6;color:white;font-weight:800;font-size:15px">Войти в аккаунт</button><button type="button" id="etnFirstRegisterBtn" style="display:block;width:100%;padding:14px;margin:10px 0;border:1px solid #555b6d;border-radius:12px;background:#171922;color:white;font-weight:800;font-size:15px">Создать аккаунт</button>';
