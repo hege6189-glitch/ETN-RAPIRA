@@ -144,16 +144,30 @@ def health():
     return jsonify({"ok": True, "service": "ETN RAPIRA API", "auth": "Telegram initData required for /api/*"})
 
 def is_admin_user(user_id):
+    # Trust only the authenticated Telegram user ID; never the client-side UI state.
+    uid = str(user_id)
+    if uid in ADMIN_IDS:
+        return True
+
     c = connect()
     try:
-        return c.execute("SELECT 1 FROM admins WHERE user_id=?", (str(user_id),)).fetchone() is not None
+        return c.execute(
+            "SELECT 1 FROM admins WHERE user_id=?", (uid,)
+        ).fetchone() is not None
     finally:
         c.close()
 
 def is_owner_user(user_id):
+    # The configured owner remains the owner even if the SQLite row is missing.
+    uid = str(user_id)
+    if uid == OWNER_ADMIN_ID:
+        return True
+
     c = connect()
     try:
-        row = c.execute("SELECT role FROM admins WHERE user_id=?", (str(user_id),)).fetchone()
+        row = c.execute(
+            "SELECT role FROM admins WHERE user_id=?", (uid,)
+        ).fetchone()
         return bool(row and row["role"] == "owner")
     finally:
         c.close()
