@@ -9,6 +9,10 @@ app.config["MAX_CONTENT_LENGTH"] = 7 * 1024 * 1024
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
 # Initial owner is seeded into the shared SQLite admin registry.
 OWNER_ADMIN_ID = "5728174980"
+# Comma-separated Telegram user IDs allowed to use the admin panel.
+# The owner is always retained even if omitted from ADMIN_IDS.
+ADMIN_IDS = {x.strip() for x in os.environ.get("ADMIN_IDS", OWNER_ADMIN_ID).split(",") if x.strip().isdigit()}
+ADMIN_IDS.add(OWNER_ADMIN_ID)
 ADMIN_SETUP_PIN = os.environ.get("ADMIN_SETUP_PIN", "").strip()
 DB_PATH = os.environ.get("ETN_DB_PATH", "/data/etn.sqlite3")
 MAX_INITDATA_AGE = int(os.environ.get("MAX_INITDATA_AGE", "86400"))
@@ -68,6 +72,13 @@ def connect():
     )""")
     c.execute("INSERT OR IGNORE INTO admins(user_id,role,added_by,created_at) VALUES(?,?,?,?)",
               (OWNER_ADMIN_ID, "owner", OWNER_ADMIN_ID, int(time.time())))
+    # Seed configured Telegram IDs into the shared admin registry.
+    # This makes authorization depend on numeric Telegram IDs, never usernames.
+    for admin_id in ADMIN_IDS:
+        if admin_id == OWNER_ADMIN_ID:
+            continue
+        c.execute("INSERT OR IGNORE INTO admins(user_id,role,added_by,created_at) VALUES(?,?,?,?)",
+                  (admin_id, "admin", OWNER_ADMIN_ID, int(time.time())))
     c.execute("""CREATE TABLE IF NOT EXISTS admin_setup (
         id INTEGER PRIMARY KEY CHECK(id=1), pin_hash TEXT NOT NULL, consumed INTEGER NOT NULL DEFAULT 0
     )""")
