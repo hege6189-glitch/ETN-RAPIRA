@@ -2045,7 +2045,7 @@ async function init(force){
  $('etnAdminPinForm').style.display='none'; $('etnAdminRetry').style.display='';
  try{
   me=await api('/api/me'); allowed=!!me.is_admin;
-  window.isAuthorizedAdmin=()=>allowed; window.adminAccessInit();
+  window.isAuthorizedAdmin=()=>allowed; window.adminAccessInit(); window.dispatchEvent(new Event('etn-admin-auth-ready'));
   if(!allowed){$('etnAdminConnection').textContent='● Нет прав';$('etnAdminGateText').textContent='Доступ запрещён. Эта панель доступна только администраторам.';$('etnAdminApp').style.display='none';$('etnAdminGate').style.display='none';return false}
   if(String(me.user?.id||'')==='5728174980'){
    const status=await api('/api/admin/setup-status');
@@ -2058,7 +2058,7 @@ async function init(force){
   }
   $('etnAdminConnection').textContent='● Доступ подтверждён';$('etnAdminGate').style.display='none';$('etnAdminPinForm').style.display='none';$('etnAdminApp').style.display='block';await refresh();return true;
  }catch(e){
-  allowed=false;window.isAuthorizedAdmin=()=>false;window.adminAccessInit();
+  allowed=false;window.isAuthorizedAdmin=()=>false;window.adminAccessInit(); window.dispatchEvent(new Event('etn-admin-auth-ready'));
   $('etnAdminConnection').textContent='● Сервер недоступен';$('etnAdminGate').style.display='block';
   $('etnAdminGateText').textContent='Не удалось подтвердить доступ: '+e.message+'. Открой Mini App через Telegram и проверь BOT_TOKEN и базу SQLite.';
   $('etnAdminApp').style.display='none';return false
@@ -2116,12 +2116,21 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 </script>
 
 <script>
-async function syncOneTimeAdminPinBox(){
-  // The PIN button is intentionally always visible; server-side authorization still applies on submit.
-  const btn=document.getElementById('adminPinNavButton');
-  if(btn)btn.style.display='flex';
+/* Admin navigation is shown only after the server verifies the Telegram ID. */
+function syncOneTimeAdminPinBox(){
+  const allowed=!!(window.isAuthorizedAdmin && window.isAuthorizedAdmin());
+  const pinBtn=document.getElementById('adminPinNavButton');
+  if(pinBtn){
+    pinBtn.style.setProperty('display',allowed?'flex':'none','important');
+    if(allowed){pinBtn.onclick=function(e){if(e){e.preventDefault();e.stopPropagation();} if(typeof window.go==='function')window.go('admin');}; pinBtn.setAttribute('aria-label','Админ-панель'); pinBtn.title='Админ-панель';}
+  }
+  const nav=document.getElementById('adminNavButton');
+  if(nav)nav.style.setProperty('display',allowed?'':'none','important');
 }
 document.addEventListener('DOMContentLoaded',syncOneTimeAdminPinBox);
+window.addEventListener('etn-admin-auth-ready',syncOneTimeAdminPinBox);
+const oldAdminAccessInit=window.adminAccessInit;
+window.adminAccessInit=function(){const result=typeof oldAdminAccessInit==='function'?oldAdminAccessInit.apply(this,arguments):false;syncOneTimeAdminPinBox();return result;};
 </script>
 
 <script id="etn-admin-pin-navigation-fix">
