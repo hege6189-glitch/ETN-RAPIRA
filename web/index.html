@@ -609,7 +609,7 @@ function renderSupportTickets(){const tickets=readSupportTickets();const mine=do
 function setSupportStatus(id,status){saveSupportTickets(readSupportTickets().map(t=>t.id===id?{...t,status}:t));toast('Статус обращения обновлён')}
 function deleteSupportTicket(id){saveSupportTickets(readSupportTickets().filter(t=>t.id!==id));toast('Обращение удалено')}
 
-function join(s){toast('Демо: заявка «'+s+'» — сервер ещё не подключён')}
+function joinLegacyDemo(s){toast('Демо: заявка «'+s+'» — сервер ещё не подключён')}
 function filter(btn){const parent=btn.parentElement;parent.querySelectorAll('.filter').forEach(x=>x.classList.remove('active'));btn.classList.add('active');toast('Фильтр: '+btn.textContent)}
 if(tg?.initDataUnsafe?.user){const u=tg.initDataUnsafe.user;document.getElementById('playerName').textContent=[u.first_name,u.last_name].filter(Boolean).join(' ')||'Игрок RAPIRA';document.getElementById('telegramName').textContent=u.username?'@'+u.username:'Telegram-пользователь';if(u.photo_url){document.getElementById('avatar').innerHTML='<img alt="" src="'+u.photo_url+'" style="width:100%;height:100%;object-fit:cover;border-radius:14px">'}}
 
