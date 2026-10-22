@@ -30,6 +30,7 @@ SHARED_KEYS = {
     "etn_player_bans_v1",
     "etn_bot_control_settings_v1",
     "etn_tournament_results_v1",
+    "etn_bot_settings_v1",
 }
 # Sensitive global state can only be changed by a Telegram admin.
 ADMIN_WRITE_KEYS = {
@@ -401,6 +402,7 @@ def community_stats():
     """Registered bot users plus totals from approved match-stat submissions."""
     c = connect()
     registered = c.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
+    online = c.execute("SELECT COUNT(*) AS n FROM users WHERE last_seen >= ?", (int(time.time()) - 300,)).fetchone()["n"]
     stats_row = c.execute("SELECT value FROM shared_state WHERE key='etn_approved_match_stats_v1'").fetchone()
     submissions_row = c.execute("SELECT value FROM shared_state WHERE key='etn_match_submissions_v1'").fetchone()
     c.close()
@@ -422,6 +424,7 @@ def community_stats():
     return jsonify({
         "ok": True,
         "registered_users": int(registered or 0),
+        "online_users": int(online or 0),
         "matches": matches,
         "kills": total("kills"),
         "assists": total("assists"),
@@ -613,25 +616,106 @@ def admin_overview():
 
 @app.get("/api/admin/users")
 def admin_users():
-    if not _admin_allowed(): return _admin_denied()
+    """List all Telegram players known in users, profiles, teams, and persisted activity."""
+    if not _admin_allowed():
+        return _admin_denied()
     q = str(request.args.get("q", "")).strip().lower()[:100]
-    try: limit = max(1, min(500, int(request.args.get("limit", "200"))))
-    except ValueError: limit = 200
+    try:
+        limit = max(1, min(10000, int(request.args.get("limit", "10000"))))
+    except ValueError:
+        limit = 10000
+
     c = connect()
-    rows = c.execute("SELECT user_id,username,first_name,last_seen FROM users ORDER BY last_seen DESC LIMIT 1000").fetchall()
-    result=[]
+    # Start with authenticated Mini App / bot users and saved player profiles.
+    rows = c.execute("""
+        SELECT user_id, username, first_name, last_seen FROM users
+        UNION
+        SELECT user_id, '' AS username, '' AS first_name, 0 AS last_seen
+          FROM user_state WHERE key='etn_player_profile_v1'
+        ORDER BY last_seen DESC
+    """).fetchall()
+    people = {}
     for r in rows:
-        item={"id":str(r["user_id"]),"username":r["username"] or "","first_name":r["first_name"] or "","last_seen":r["last_seen"]}
-        if q and q not in (item["id"]+" "+item["username"]+" "+item["first_name"]).lower(): continue
-        prof=c.execute("SELECT value FROM user_state WHERE user_id=? AND key='etn_player_profile_v1'",(item["id"],)).fetchone()
-        if prof:
-            try:
-                p=json.loads(prof["value"]); item["profile"]={"nick":p.get("nick", ""),"team":p.get("team", ""),"rank":p.get("rank",p.get("level",""))}
-            except Exception: item["profile"]={}
+        uid = str(r["user_id"])
+        people[uid] = {
+            "id": uid, "username": r["username"] or "",
+            "first_name": r["first_name"] or "", "last_seen": int(r["last_seen"] or 0)
+        }
+
+    # Also include Telegram IDs referenced by saved teams and server-side queues.
+    # Only explicit Telegram/user ID fields are accepted (not arbitrary game IDs).
+    def add_id(value):
+        if value is None:
+            return
+        uid = str(value).strip()
+        if uid.isdigit() and uid not in people:
+            people[uid] = {"id": uid, "username": "", "first_name": "", "last_seen": 0}
+
+    team_rows = c.execute("SELECT captain_id, members_json FROM teams").fetchall()
+    for team in team_rows:
+        add_id(team["captain_id"])
+        try:
+            members = json.loads(team["members_json"] or "[]")
+        except (TypeError, ValueError):
+            members = []
+        for member in members if isinstance(members, list) else []:
+            if isinstance(member, dict):
+                for field in ("user_id", "userId", "telegram_id", "telegramId", "telegram_user_id"):
+                    add_id(member.get(field))
+
+    id_fields = {
+        "user_id", "userId", "telegram_id", "telegramId", "telegram_user_id",
+        "telegramUserId", "submittedByUserId", "captain_id", "captainId"
+    }
+    state_rows = c.execute("SELECT key, value FROM shared_state").fetchall()
+    def scan_ids(value):
+        if isinstance(value, dict):
+            for field, child in value.items():
+                if field in id_fields:
+                    add_id(child)
+                # Recurse through nested objects/lists for explicit ID fields.
+                if isinstance(child, (dict, list)):
+                    scan_ids(child)
+        elif isinstance(value, list):
+            for child in value:
+                scan_ids(child)
+    for state_row in state_rows:
+        try:
+            decoded = json.loads(state_row["value"])
+        except (TypeError, ValueError):
+            continue
+        scan_ids(decoded)
+
+    result = []
+    for uid, item in people.items():
+        profrow = c.execute(
+            "SELECT value FROM user_state WHERE user_id=? AND key='etn_player_profile_v1'", (uid,)
+        ).fetchone()
+        try:
+            profile = json.loads(profrow["value"]) if profrow else {}
+            if not isinstance(profile, dict):
+                profile = {}
+        except (TypeError, ValueError):
+            profile = {}
+        item["profile"] = {
+            "nick": profile.get("nick", ""),
+            "team": profile.get("team", ""),
+            "rank": profile.get("rank", profile.get("level", ""))
+        }
+        haystack = " ".join((
+            item["id"], item["username"], item["first_name"],
+            str(item["profile"]["nick"]), str(item["profile"]["team"]),
+            str(item["profile"]["rank"])
+        )).lower()
+        if q and q not in haystack:
+            continue
         result.append(item)
-        if len(result)>=limit: break
+
     c.close()
-    return jsonify({"ok":True,"users":result,"total_returned":len(result)})
+    result.sort(key=lambda item: (item["last_seen"], item["id"]), reverse=True)
+    total = len(result)
+    result = result[:limit]
+    return jsonify({"ok": True, "users": result, "total_returned": total})
 
 @app.get("/api/admin/state")
 def admin_all_state():
