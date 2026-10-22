@@ -166,16 +166,24 @@ main{padding:14px}
 #etnServerAdminShell .etn-admin-card:after{content:"";display:block;clear:both}
 </style>
 <script>
-/* ETN local-PC backend bridge: syncs the current browser's app storage to its Telegram user record.
-   Server-side validation is performed using Telegram WebApp initData. */
+/* ETN persistent backend bridge: preserve existing design and restore saved state before syncing. */
 (() => {
   const KEYS = [
-    "etn_active_account_v1", "etn_approved_match_stats_v1", "etn_demo_accounts_v1",
-    "etn_match_submissions_v1", "etn_organizer_applications_v1", "etn_player_profile_v1",
-    "etn_screenshot_registrations_v1", "etn_workflow_tournaments_v1", "etn_workflow_tournament_regs_v1", "etn_player_bans_v1", "etn_bot_control_settings_v1"
+    "etn_active_account_v1", "etn_player_profile_v1", "etn_demo_accounts_v1",
+    "etn_approved_match_stats_v1", "etn_match_submissions_v1", "etn_organizer_applications_v1",
+    "etn_screenshot_registrations_v1", "etn_team_rating_v1", "etn_support_tickets_v1",
+    "etn_workflow_tournaments_v1", "etn_workflow_tournament_regs_v1", "etn_player_bans_v1",
+    "etn_bot_control_settings_v1", "etn_tournament_results_v1", "etn_bot_settings_v1"
   ];
+  const APPEND_ONLY = new Set([
+    "etn_match_submissions_v1", "etn_organizer_applications_v1",
+    "etn_screenshot_registrations_v1", "etn_workflow_tournament_regs_v1"
+  ]);
   const tg = window.Telegram && window.Telegram.WebApp;
   const initData = tg && tg.initData ? tg.initData : "";
+  const originalSetItem = Storage.prototype.setItem;
+  let restoring = false;
+  const pending = new Map();
   const api = async (path, options={}) => {
     const r = await fetch(path, {
       ...options,
@@ -185,41 +193,76 @@ main{padding:14px}
     if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
     return data;
   };
+  const parseLocal = key => {
+    try { return JSON.parse(window.localStorage.getItem(key)); } catch (_) { return null; }
+  };
+  const meaningful = value => Array.isArray(value) ? value.length > 0 :
+    !!(value && typeof value === "object" && Object.keys(value).length);
   window.ETNBackend = {
-    ready: false,
-    mode: "checking",
+    ready: false, mode: "checking", user: null,
     async check() {
+      if (!initData) {
+        this.mode = "not-in-telegram";
+        window.dispatchEvent(new CustomEvent("etn-backend-error", {detail: "Откройте приложение через Telegram-бота."}));
+        return null;
+      }
       try {
         const result = await api("/api/me");
+        this.user = result.user || null;
+        // Restore server copies first. Never write blank defaults over existing server data.
+        restoring = true;
+        try {
+          for (const key of KEYS) {
+            try {
+              const saved = await api("/api/state/" + encodeURIComponent(key));
+              if (saved && saved.found) {
+                originalSetItem.call(window.localStorage, key, JSON.stringify(saved.value));
+              } else {
+                const localValue = parseLocal(key);
+                // Migrate useful local data only when the server has no copy. Shared moderation
+                // queues are append-only for players; other shared settings require admin rights.
+                const canMigrate = APPEND_ONLY.has(key) || key === "etn_active_account_v1" ||
+                  key === "etn_player_profile_v1" || result.is_admin;
+                if (meaningful(localValue) && canMigrate) await this.saveKey(key, localValue);
+              }
+            } catch (stateError) {
+              console.warn("ETN: не удалось восстановить " + key, stateError.message);
+            }
+          }
+        } finally { restoring = false; }
         this.ready = true;
         this.mode = "telegram";
-        // Restore saved state from the server on a new device/session. Server data is authoritative for this Telegram account.
-        for (const key of KEYS) {
-          try {
-            const saved = await api("/api/state/" + encodeURIComponent(key));
-            if (saved && saved.found) originalSetItem.call(window.localStorage, key, JSON.stringify(saved.value));
-          } catch (stateError) { console.warn("ETN: не удалось загрузить", key, stateError.message); }
-        }
         window.dispatchEvent(new CustomEvent("etn-backend-ready", {detail: result}));
         return result;
       } catch (e) {
+        this.ready = false;
         this.mode = "not-authenticated";
-        console.warn("ETN backend: откройте приложение через Telegram-бота.", e.message);
+        console.warn("ETN backend: авторизация/сервер недоступны.", e.message);
         window.dispatchEvent(new CustomEvent("etn-backend-error", {detail: e.message}));
         return null;
       }
     },
     async saveKey(key, value) {
-      if (!KEYS.includes(key) || !this.ready) return;
-      try { await api("/api/state/" + encodeURIComponent(key), {method:"PUT", body:JSON.stringify({value})}); }
-      catch(e) { console.error("ETN: не удалось синхронизировать", key, e); }
+      if (!KEYS.includes(key) || !this.ready && !restoring) return;
+      // Serialize writes per key so slower requests cannot overwrite newer state.
+      const previous = pending.get(key) || Promise.resolve();
+      const next = previous.catch(()=>{}).then(() =>
+        api("/api/state/" + encodeURIComponent(key), {
+          method: "PUT", body: JSON.stringify({value})
+        })
+      );
+      pending.set(key, next);
+      try { await next; }
+      catch(e) { console.error("ETN: не удалось сохранить " + key, e); throw e; }
+      finally { if (pending.get(key) === next) pending.delete(key); }
     }
   };
-  const originalSetItem = Storage.prototype.setItem;
   Storage.prototype.setItem = function(key, value) {
     originalSetItem.call(this, key, value);
-    if (this === window.localStorage && KEYS.includes(String(key))) {
-      window.ETNBackend.saveKey(String(key), String(value));
+    if (this === window.localStorage && !restoring && KEYS.includes(String(key)) && window.ETNBackend.ready) {
+      let parsed;
+      try { parsed = JSON.parse(String(value)); } catch (_) { parsed = value; }
+      window.ETNBackend.saveKey(String(key), parsed).catch(()=>{});
     }
   };
   if (tg) { try { tg.ready(); tg.expand(); } catch(e) {} }
