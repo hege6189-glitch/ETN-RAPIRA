@@ -2382,9 +2382,21 @@ document.addEventListener('DOMContentLoaded',syncOneTimeAdminPinBox);
     function call(name){try{if(typeof window[name]==='function')jobs.push(Promise.resolve(window[name]()));}catch(e){console.error('[ETN refresh]',name,e);}}
     // Refresh the server-backed admin data, the legacy admin view, and all visible queue sections.
     call('etnAdminRefresh'); call('adminRefresh'); call('etnAdminLoadStates'); call('etnAdminLoadUsers');
-    Promise.allSettled(jobs).then(function(){
+    Promise.allSettled(jobs).then(function(results){
+      var failures=results.filter(function(r){return r.status==='rejected';});
       if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'↻ Обновить';delete btn.dataset.etnRefreshing;}
-      try{if(typeof window.toast==='function')window.toast(jobs.length?'Обновление завершено':'Функции обновления пока не подключены');}catch(e){}
+      try{
+        if(jobs.length && failures.length===0){
+          if(typeof window.toast==='function')window.toast('Данные админ-панели обновлены');
+        }else if(jobs.length){
+          console.error('[ETN refresh] some refresh tasks failed',failures);
+          if(typeof window.toast==='function')window.toast('Обновление завершилось с ошибкой. Проверь подключение к API');
+        }else{
+          console.warn('[ETN refresh] no refresh handlers found; reloading page as fallback');
+          if(typeof window.toast==='function')window.toast('Перезагружаю админ-панель…');
+          window.location.reload();
+        }
+      }catch(e){}
     });
   }
   function bindRefreshButtons(){
