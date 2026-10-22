@@ -3,7 +3,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "http://bot-1792340572-2257-mid.bothost.tech"
+  to = "https://bot-1792481971-8758-mid.bothost.tech"
   status = 200
   force = true
 
