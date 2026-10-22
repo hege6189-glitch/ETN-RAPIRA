@@ -2332,46 +2332,56 @@ document.addEventListener('DOMContentLoaded',syncOneTimeAdminPinBox);
 
 <script id="etn-admin-refresh-everywhere-fix">
 (function(){
-  function refreshEverything(btn){
-    if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent='↻ Обновляю…';}
+  function runRefresh(btn){
+    if(btn && btn.dataset.etnRefreshing==='1') return;
+    if(btn){btn.dataset.etnRefreshing='1';btn.dataset.oldText=btn.textContent;btn.disabled=true;btn.textContent='↻ Обновляю…';}
     var jobs=[];
-    try{if(typeof window.etnAdminRefresh==='function')jobs.push(Promise.resolve(window.etnAdminRefresh()));}catch(e){console.error(e)}
-    try{if(typeof window.adminRefresh==='function')jobs.push(Promise.resolve(window.adminRefresh()));}catch(e){console.error(e)}
-    try{if(typeof window.etnAdminLoadStates==='function')jobs.push(Promise.resolve(window.etnAdminLoadStates()));}catch(e){console.error(e)}
-    return Promise.allSettled(jobs).then(function(){
-      if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'↻ Обновить';}
-      try{if(typeof window.toast==='function')window.toast('Данные админ-панели обновлены');}catch(e){}
+    function call(name){try{if(typeof window[name]==='function')jobs.push(Promise.resolve(window[name]()));}catch(e){console.error('[ETN refresh]',name,e);}}
+    // Refresh the server-backed admin data, the legacy admin view, and all visible queue sections.
+    call('etnAdminRefresh'); call('adminRefresh'); call('etnAdminLoadStates'); call('etnAdminLoadUsers');
+    Promise.allSettled(jobs).then(function(){
+      if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'↻ Обновить';delete btn.dataset.etnRefreshing;}
+      try{if(typeof window.toast==='function')window.toast(jobs.length?'Обновление завершено':'Функции обновления пока не подключены');}catch(e){}
     });
   }
-  function addRefreshButtons(){
-    var shell=document.getElementById('etnServerAdminShell');
-    if(shell){
-      shell.querySelectorAll('.etn-admin-card').forEach(function(card){
-        if(card.querySelector('.etn-refresh-card-btn'))return;
-        // Do not replace or duplicate any refresh control already present in this card.
-        var existingRefresh=Array.prototype.find.call(card.querySelectorAll('button,[role=button],input[type=button],input[type=submit]'),function(x){return /обновить|refresh|перезагрузить/i.test((x.innerText||x.value||x.getAttribute('aria-label')||x.title||'').trim());});
-        if(existingRefresh){existingRefresh.dataset.etnExistingRefresh='1';return;}
-        var b=document.createElement('button');b.type='button';b.className='etn-refresh-card-btn';b.textContent='↻ Обновить';
-        b.addEventListener('click',function(){refreshEverything(b)});
-        var heading=card.querySelector('h3');
-        if(heading)heading.insertAdjacentElement('afterend',b);else card.insertBefore(b,card.firstChild);
+  function bindRefreshButtons(){
+    var scope=document.getElementById('etnServerAdminShell');
+    if(scope){
+      scope.querySelectorAll('.etn-admin-card').forEach(function(card){
+        var controls=card.querySelectorAll('button,[role="button"],input[type="button"],input[type="submit"]');
+        var found=false;
+        Array.prototype.forEach.call(controls,function(b){
+          var label=(b.innerText||b.value||b.getAttribute('aria-label')||b.title||'').trim();
+          if(/обновить|refresh|перезагрузить/i.test(label)){
+            found=true;
+            if(b.dataset.etnRefreshBound!=='1'){
+              b.dataset.etnRefreshBound='1';
+              b.addEventListener('click',function(){runRefresh(b)});
+            }
+          }
+        });
+        if(!found && !card.querySelector('.etn-refresh-card-btn')){
+          var b=document.createElement('button');b.type='button';b.className='secondary etn-refresh-card-btn';b.textContent='↻ Обновить';
+          b.addEventListener('click',function(){runRefresh(b)});
+          var heading=card.querySelector('h3');if(heading)heading.insertAdjacentElement('afterend',b);else card.insertBefore(b,card.firstChild);
+        }
       });
     }
-    // Keep the legacy admin toolbar refresh action working through the same combined refresh.
-    document.querySelectorAll('#adminConsole button[onclick*="adminRefresh()"],#adminConsole button[onclick*="adminRefresh("]').forEach(function(b){
-      if(b.dataset.etnCombinedRefresh)return;b.dataset.etnCombinedRefresh='1';
-      b.addEventListener('click',function(){refreshEverything(b)});
+    document.querySelectorAll('#adminConsole button').forEach(function(b){
+      var label=(b.innerText||b.value||'').trim();
+      if(/обновить|refresh|перезагрузить/i.test(label) && b.dataset.etnRefreshBound!=='1'){
+        b.dataset.etnRefreshBound='1';b.addEventListener('click',function(){runRefresh(b)});
+      }
     });
   }
-  document.addEventListener('DOMContentLoaded',addRefreshButtons);
-  window.addEventListener('load',addRefreshButtons);
-  setTimeout(addRefreshButtons,500);setTimeout(addRefreshButtons,1800);setTimeout(addRefreshButtons,3500);
-  // Auto-refresh queues while the admin panel is open so new applications/messages appear without manual reload.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindRefreshButtons);else bindRefreshButtons();
+  window.addEventListener('load',bindRefreshButtons);
+  setTimeout(bindRefreshButtons,500);setTimeout(bindRefreshButtons,1800);setTimeout(bindRefreshButtons,3500);
+  // Periodically refresh queues only while an admin surface is visible.
   setInterval(function(){
-    var shell=document.getElementById('etnServerAdminShell');
-    var legacy=document.getElementById('adminConsole');
-    var visible=(shell&&shell.offsetParent!==null&&getComputedStyle(shell).display!=='none') || (legacy&&legacy.offsetParent!==null&&getComputedStyle(legacy).display!=='none');
-    if(visible && !document.hidden) refreshEverything(null);
+    var shell=document.getElementById('etnServerAdminShell'), legacy=document.getElementById('adminConsole');
+    var visible=(shell&&shell.offsetParent!==null&&getComputedStyle(shell).display!=='none')||(legacy&&legacy.offsetParent!==null&&getComputedStyle(legacy).display!=='none');
+    if(visible&&!document.hidden)runRefresh(null);
   },30000);
 })();
 </script>
